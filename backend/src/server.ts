@@ -1,6 +1,7 @@
 import app from "./app.js";
 import { env } from "./core/config/env.js";
 import { logger } from "./core/config/logger.js";
+import { getCookiesFilePath } from "./services/ytdlp.service.js";
 
 const startServer = async (): Promise<void> => {
   const server = app.listen(env.PORT, () => {
@@ -9,6 +10,13 @@ const startServer = async (): Promise<void> => {
     logger.info(`ffmpeg path      : ${env.FFMPEG_PATH}`);
     logger.info(`bulk concurrency : ${env.BULK_CONCURRENCY}`);
     logger.info(`mode             : Direct high-speed processing`);
+
+    const cookiePath = getCookiesFilePath();
+    if (cookiePath) {
+      logger.info(`cookies          : Enabled (${cookiePath})`);
+    } else {
+      logger.warn(`cookies          : None configured (anonymous requests)`);
+    }
   });
 
   const shutdown = (signal: string) => {

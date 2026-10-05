@@ -16,7 +16,7 @@ let cachedCookiePath: string | null = null;
  * it writes the content to a temporary file once and reuses it.
  */
 export function getCookiesFilePath(): string | null {
-  const rawCookies = env.YOUTUBE_COOKIES?.trim();
+  const rawCookies = (process.env.YOUTUBE_COOKIES || env.YOUTUBE_COOKIES)?.trim();
   if (!rawCookies) return null;
 
   if (cachedCookiePath && fs.existsSync(cachedCookiePath)) {
