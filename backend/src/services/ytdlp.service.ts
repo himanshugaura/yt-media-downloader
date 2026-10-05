@@ -19,18 +19,18 @@ export function getCookiesFilePath(): string | null {
   const rawCookies = env.YOUTUBE_COOKIES?.trim();
   if (!rawCookies) return null;
 
-  // If already a valid file on disk
-  if (fs.existsSync(rawCookies)) {
-    return rawCookies;
-  }
-
-  // If cached cookie file already written
   if (cachedCookiePath && fs.existsSync(cachedCookiePath)) {
     return cachedCookiePath;
   }
 
   try {
     let cookieContent = rawCookies;
+
+    // If pointing to a file on disk (like Render Secret File /etc/secrets/cookies.txt)
+    // ALWAYS read and copy to a writable location (/tmp) because yt-dlp attempts to save cookies on exit!
+    if (fs.existsSync(rawCookies)) {
+      cookieContent = fs.readFileSync(rawCookies, "utf-8");
+    }
 
     // Check if base64 encoded (useful for multi-line env var pasting in Render)
     if (cookieContent.startsWith("base64:")) {
@@ -51,13 +51,14 @@ export function getCookiesFilePath(): string | null {
       cookieContent = cookieContent.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
     }
 
+    // Write to writable /tmp directory so yt-dlp's save_cookies on exit never encounters Errno 30 Read-only file system
     const tmpCookiePath = path.join(os.tmpdir(), "youtube_cookies.txt");
     fs.writeFileSync(tmpCookiePath, cookieContent, { encoding: "utf-8", mode: 0o600 });
     cachedCookiePath = tmpCookiePath;
-    logger.info("Successfully wrote YouTube cookies from env to temporary file", { path: tmpCookiePath });
+    logger.info("Successfully loaded and prepared writable YouTube cookies", { path: tmpCookiePath });
     return tmpCookiePath;
   } catch (err) {
-    logger.error("Failed to write YouTube cookies file", { err });
+    logger.error("Failed to prepare YouTube cookies file", { err });
     return null;
   }
 }
@@ -260,7 +261,7 @@ export function spawnYtDlpAudioStream(url: string, signal?: AbortSignal): ChildP
   const ytDlpPath = env.YTDLP_PATH;
   const args = [
     ...getYtDlpBaseArgs(),
-    "-f", "ba/b",
+    "-f", "ba/b/18/best",
     "-o", "-",
     "--no-part",
     url,
@@ -379,7 +380,7 @@ export async function ytDlpDownload(options: YtDlpDownloadOptions): Promise<YtDl
   const args: string[] = [
     ...getYtDlpBaseArgs(),
     "--print", "after_move:title", // Print title upon completion to eliminate separate metadata probe
-    "--format", "ba/b",
+    "--format", "ba/b/18/best",
     "--newline",
     "--output", outputTemplate,
     url,

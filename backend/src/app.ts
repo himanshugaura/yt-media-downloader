@@ -11,6 +11,9 @@ import apiRoutes from "./routes/index.route.js";
 
 const app = express();
 
+// Trust reverse proxy headers (Render, Cloudflare) for accurate rate limiting and IP logging
+app.set("trust proxy", 1);
+
 // ── Security headers ───────────────────────────────────────────────────────
 // Disable frameguard and strict CSP since this is a headless API serving media streams
 app.use(
