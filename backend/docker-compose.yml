@@ -15,6 +15,7 @@ services:
       DOWNLOAD_TIMEOUT_MS: 600000
       TEMP_DIR: /app/storage/tmp
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      YOUTUBE_COOKIES: ${YOUTUBE_COOKIES:-}
     tmpfs:
       - /tmp:exec,mode=1777
     volumes:

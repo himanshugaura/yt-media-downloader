@@ -20,6 +20,9 @@ const envSchema = z.object({
 
   // Frontend URL for CORS
   FRONTEND_URL: z.string().default("http://localhost:3000"),
+
+  // Optional YouTube cookies content or file path for cloud/Render bypass
+  YOUTUBE_COOKIES: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

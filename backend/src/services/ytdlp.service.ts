@@ -1,9 +1,70 @@
 import { spawn, type ChildProcess } from "child_process";
+import fs from "fs";
+import os from "os";
 import path from "path";
 
 import { env } from "../core/config/env.js";
 import { logger } from "../core/config/logger.js";
 import { findFirstFile } from "../shared/utils/tempFiles.js";
+
+let cachedCookiePath: string | null = null;
+
+/**
+ * Returns the path to a cookies file if YOUTUBE_COOKIES is configured.
+ * If YOUTUBE_COOKIES points to a valid file, that path is returned.
+ * If YOUTUBE_COOKIES contains raw cookie text (e.g. pasted into Render env),
+ * it writes the content to a temporary file once and reuses it.
+ */
+export function getCookiesFilePath(): string | null {
+  const cookies = env.YOUTUBE_COOKIES?.trim();
+  if (!cookies) return null;
+
+  // If already a valid file on disk
+  if (fs.existsSync(cookies)) {
+    return cookies;
+  }
+
+  // If cached cookie file already written
+  if (cachedCookiePath && fs.existsSync(cachedCookiePath)) {
+    return cachedCookiePath;
+  }
+
+  try {
+    const tmpCookiePath = path.join(os.tmpdir(), "youtube_cookies.txt");
+    fs.writeFileSync(tmpCookiePath, cookies, { encoding: "utf-8", mode: 0o600 });
+    cachedCookiePath = tmpCookiePath;
+    logger.info("Successfully wrote YouTube cookies from env to temporary file", { path: tmpCookiePath });
+    return tmpCookiePath;
+  } catch (err) {
+    logger.error("Failed to write YouTube cookies file", { err });
+    return null;
+  }
+}
+
+/**
+ * Common base arguments for yt-dlp across all operations (streaming, downloading, metadata).
+ * Optimized for datacenter / cloud environments (Render, AWS, DigitalOcean) to prevent bot detection:
+ * - Uses android & web player clients
+ * - Evaluates JS challenge tokens using Node.js
+ * - Forces IPv4 to bypass broken cloud IPv6 routes to Google Video CDNs
+ * - Injects cookies if configured
+ */
+export function getYtDlpBaseArgs(): string[] {
+  const args: string[] = [
+    "--no-playlist",
+    "--no-warnings",
+    "--force-ipv4",
+    "--js-runtimes", "node",
+    "--extractor-args", "youtube:player_client=android,web",
+  ];
+
+  const cookieFile = getCookiesFilePath();
+  if (cookieFile) {
+    args.push("--cookies", cookieFile);
+  }
+
+  return args;
+}
 
 export interface YtDlpMetadata {
   id?: string;
@@ -166,15 +227,14 @@ export async function fetchFastTitle(url: string, signal?: AbortSignal): Promise
 export function spawnYtDlpAudioStream(url: string, signal?: AbortSignal): ChildProcess {
   const ytDlpPath = env.YTDLP_PATH;
   const args = [
+    ...getYtDlpBaseArgs(),
     "-f", "ba/b",
     "-o", "-",
-    "--no-playlist",
-    "--no-warnings",
     "--no-part",
     url,
   ];
 
-  logger.debug(`Spawning yt-dlp audio stream: ${ytDlpPath} -f ba/b -o - <url>`);
+  logger.debug(`Spawning yt-dlp audio stream: ${ytDlpPath} ${args.map((a) => (a === url ? "<url>" : a)).join(" ")}`);
 
   const child = spawn(ytDlpPath, args, {
     stdio: ["ignore", "pipe", "pipe"],
@@ -204,10 +264,8 @@ export function spawnYtDlpAudioStream(url: string, signal?: AbortSignal): ChildP
 export async function getYtMetadata(url: string, signal?: AbortSignal): Promise<YtDlpMetadata> {
   const ytDlpPath = env.YTDLP_PATH;
   const args = [
+    ...getYtDlpBaseArgs(),
     "--dump-single-json",
-    "--no-playlist",
-    "--no-warnings",
-    "--js-runtimes", "node",
     url,
   ];
 
@@ -287,17 +345,13 @@ export async function ytDlpDownload(options: YtDlpDownloadOptions): Promise<YtDl
 
   const outputTemplate = path.join(outputDir, "%(title).100B.%(ext)s");
   const args: string[] = [
-    "--js-runtimes", "node", // Use Node.js to evaluate YouTube challenge scripts and avoid 403 Forbidden
+    ...getYtDlpBaseArgs(),
     "--print", "after_move:title", // Print title upon completion to eliminate separate metadata probe
-  ];
-
-  args.push(
-    "--format", "bestaudio",
-    "--no-playlist",
+    "--format", "ba/b",
     "--newline",
     "--output", outputTemplate,
     url,
-  );
+  ];
 
   logger.debug(`Spawning yt-dlp: ${ytDlpPath} ${args.map((a) => (a === url ? "<url>" : a)).join(" ")}`);
 
