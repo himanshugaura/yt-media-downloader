@@ -12,13 +12,20 @@ import apiRoutes from "./routes/index.route.js";
 const app = express();
 
 // ── Security headers ───────────────────────────────────────────────────────
-app.use(helmet());
+// Disable frameguard and strict CSP since this is a headless API serving media streams
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    frameguard: false,
+  }),
+);
 
 // ── CORS ───────────────────────────────────────────────────────────────────
 app.use(
   cors({
     origin: env.NODE_ENV === "production" ? process.env.FRONTEND_URL ?? "*" : "*",
     methods: ["GET", "POST"],
+    exposedHeaders: ["Content-Disposition"],
   }),
 );
 

@@ -55,7 +55,7 @@ export function getYtDlpBaseArgs(): string[] {
     "--no-warnings",
     "--force-ipv4",
     "--js-runtimes", "node",
-    "--extractor-args", "youtube:player_client=android,web",
+    "--extractor-args", "youtube:player_client=mweb,web,android",
   ];
 
   const cookieFile = getCookiesFilePath();
