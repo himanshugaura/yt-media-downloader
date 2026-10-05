@@ -21,6 +21,18 @@ const startServer = async (): Promise<void> => {
 
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+  process.on("uncaughtException", (error: Error & { code?: string }) => {
+    if (error.code === "EPIPE" || error.code === "ECONNRESET") {
+      logger.debug(`Ignored client socket disconnect exception: ${error.code}`);
+      return;
+    }
+    logger.error("Uncaught Exception", { error: error.message, stack: error.stack });
+  });
+
+  process.on("unhandledRejection", (reason: unknown) => {
+    logger.error("Unhandled Rejection", { reason });
+  });
 };
 
 startServer().catch((error: unknown) => {
