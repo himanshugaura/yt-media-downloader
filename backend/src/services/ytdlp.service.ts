@@ -72,21 +72,27 @@ export function getCookiesFilePath(): string | null {
  * - Injects PO token if configured
  */
 export function getYtDlpBaseArgs(): string[] {
+  const cookieFile = getCookiesFilePath();
+
   const args: string[] = [
     "--no-playlist",
     "--no-warnings",
     "--force-ipv4",
-    "--js-runtimes", "node",
-    "--extractor-args", "youtube:player_client=mweb,web,android",
   ];
+
+  if (cookieFile) {
+    // When authenticated with cookies, use standard direct extraction (~2-3s) without slow mweb JS challenge sleeps
+    args.push("--cookies", cookieFile);
+  } else {
+    // Fallback for unauthenticated datacenter IPs
+    args.push(
+      "--js-runtimes", "node",
+      "--extractor-args", "youtube:player_client=mweb,web,android",
+    );
+  }
 
   if (env.YOUTUBE_PO_TOKEN?.trim()) {
     args.push("--extractor-args", `youtube:po_token=${env.YOUTUBE_PO_TOKEN.trim()}`);
-  }
-
-  const cookieFile = getCookiesFilePath();
-  if (cookieFile) {
-    args.push("--cookies", cookieFile);
   }
 
   return args;
