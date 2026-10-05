@@ -86,7 +86,7 @@ export default function Home() {
   }, [url]);
 
   // ── Handle Single Download ──────────────────────────────────────────────
-  const handleSingleSubmit = (e: React.FormEvent) => {
+  const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUrl = url.trim();
     if (!cleanUrl) return;
@@ -99,26 +99,49 @@ export default function Home() {
     setSingleError(null);
     setIsDownloading(true);
 
-    // Isolated browser download context: invisible iframe triggers direct native download
-    // without causing top-level document navigation or browser tab loading indicators.
-    const downloadUrl = `${API_BASE_URL}/download?url=${encodeURIComponent(cleanUrl)}`;
-    const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
-    iframe.setAttribute("aria-hidden", "true");
-    iframe.src = downloadUrl;
-    document.body.appendChild(iframe);
+    try {
+      const downloadUrl = `${API_BASE_URL}/download?url=${encodeURIComponent(cleanUrl)}`;
+      const res = await fetch(downloadUrl);
 
-    // Reset button state after download starts
-    setTimeout(() => {
-      setIsDownloading(false);
-    }, 2500);
-
-    // Clean up temporary iframe after response headers trigger browser download
-    setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        document.body.removeChild(iframe);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        const msg = errorData?.message || `Download failed with HTTP ${res.status}`;
+        throw new Error(msg);
       }
-    }, 60000);
+
+      // Read filename from Content-Disposition header if available
+      let filename = videoInfo?.title ? `${videoInfo.title}.mp3` : "audio.mp3";
+      const disposition = res.headers.get("Content-Disposition");
+      if (disposition) {
+        const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+        const asciiMatch = disposition.match(/filename="([^"]+)"/i);
+        if (utf8Match && utf8Match[1]) {
+          filename = decodeURIComponent(utf8Match[1]);
+        } else if (asciiMatch && asciiMatch[1]) {
+          filename = asciiMatch[1];
+        }
+      }
+
+      if (!filename.toLowerCase().endsWith(".mp3")) {
+        filename += ".mp3";
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to download audio.";
+      setSingleError(message);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // ── Handle Bulk Download ────────────────────────────────────────────────
