@@ -1,0 +1,22 @@
+# ── Never needed in any stage ─────────────────────────────────────────────
+node_modules
+dist
+
+# ── Secrets — never bake into image ───────────────────────────────────────
+.env
+.env.local
+.env.production
+
+# ── Editor / OS noise ─────────────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+.DS_Store
+Thumbs.db
+
+# ── Logs / test output ────────────────────────────────────────────────────
+*.log
+logs
+coverage
+*.test.ts
+*.spec.ts

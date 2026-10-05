@@ -1,0 +1,93 @@
+
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
+.pnpm-store/
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# Build Output
+# ==========================================
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# ==========================================
+# Logs
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ==========================================
+# Prisma
+# ==========================================
+# Prisma generated client (optional to ignore)
+# Uncomment if you don't want to track generated files
+# node_modules/.prisma/
+# node_modules/@prisma/client/
+
+# Prisma migrations (KEEP TRACKED)
+# prisma/migrations/
+
+# ==========================================
+# Testing & Coverage
+# ==========================================
+coverage/
+.nyc_output/
+test-results/
+
+# ==========================================
+# IDE & Editors
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# OS Generated Files
+# ==========================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==========================================
+# Temporary Files
+# ==========================================
+tmp/
+temp/
+.cache/
+
+# ==========================================
+# Docker
+# ==========================================
+.docker/
+
+# ==========================================
+# Runtime Files
+# ==========================================
+*.pid
+*.pid.lock
+
+# ==========================================
+# TypeScript
+# ==========================================
+*.tsbuildinfo
+
+
+src/generated/**
