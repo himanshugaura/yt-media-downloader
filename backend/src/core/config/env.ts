@@ -23,6 +23,9 @@ const envSchema = z.object({
 
   // Optional YouTube cookies content or file path for cloud/Render bypass
   YOUTUBE_COOKIES: z.string().optional(),
+
+  // Optional YouTube PO token for cloud/Render bypass
+  YOUTUBE_PO_TOKEN: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

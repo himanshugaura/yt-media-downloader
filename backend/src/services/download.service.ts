@@ -164,7 +164,12 @@ export async function streamSingleMp3(options: StreamSingleMp3Options): Promise<
       if (code !== 0 && !headersSent) {
         const errorDetail = ytErrors.filter(Boolean).slice(-3).join(" ") || `Process exited with code ${code}`;
         logger.error(`[${requestId}] yt-dlp exited with error before stream started: ${errorDetail}`);
-        fail(new ApiError(502, `YouTube audio extraction failed: ${errorDetail}`));
+
+        let clientMessage = `YouTube audio extraction failed: ${errorDetail}`;
+        if (errorDetail.includes("Sign in to confirm you’re not a bot") || errorDetail.includes("Sign in to confirm you're not a bot")) {
+          clientMessage = "YouTube Bot Detection: Cloud server IP challenged by YouTube. Provide YOUTUBE_COOKIES in Render environment variables to bypass.";
+        }
+        fail(new ApiError(502, clientMessage));
       }
     });
 

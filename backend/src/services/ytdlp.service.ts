@@ -16,12 +16,12 @@ let cachedCookiePath: string | null = null;
  * it writes the content to a temporary file once and reuses it.
  */
 export function getCookiesFilePath(): string | null {
-  const cookies = env.YOUTUBE_COOKIES?.trim();
-  if (!cookies) return null;
+  const rawCookies = env.YOUTUBE_COOKIES?.trim();
+  if (!rawCookies) return null;
 
   // If already a valid file on disk
-  if (fs.existsSync(cookies)) {
-    return cookies;
+  if (fs.existsSync(rawCookies)) {
+    return rawCookies;
   }
 
   // If cached cookie file already written
@@ -30,8 +30,29 @@ export function getCookiesFilePath(): string | null {
   }
 
   try {
+    let cookieContent = rawCookies;
+
+    // Check if base64 encoded (useful for multi-line env var pasting in Render)
+    if (cookieContent.startsWith("base64:")) {
+      cookieContent = Buffer.from(cookieContent.slice(7), "base64").toString("utf-8");
+    } else if (!cookieContent.includes("\t") && !cookieContent.includes(" ") && cookieContent.length > 50) {
+      try {
+        const decoded = Buffer.from(cookieContent, "base64").toString("utf-8");
+        if (decoded.includes("# Netscape") || decoded.includes("youtube.com")) {
+          cookieContent = decoded;
+        }
+      } catch {
+        // Not base64
+      }
+    }
+
+    // Convert literal \n or \r\n (from single-line env vars) to real newlines
+    if (cookieContent.includes("\\n") && !cookieContent.includes("\n")) {
+      cookieContent = cookieContent.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+    }
+
     const tmpCookiePath = path.join(os.tmpdir(), "youtube_cookies.txt");
-    fs.writeFileSync(tmpCookiePath, cookies, { encoding: "utf-8", mode: 0o600 });
+    fs.writeFileSync(tmpCookiePath, cookieContent, { encoding: "utf-8", mode: 0o600 });
     cachedCookiePath = tmpCookiePath;
     logger.info("Successfully wrote YouTube cookies from env to temporary file", { path: tmpCookiePath });
     return tmpCookiePath;
@@ -44,10 +65,11 @@ export function getCookiesFilePath(): string | null {
 /**
  * Common base arguments for yt-dlp across all operations (streaming, downloading, metadata).
  * Optimized for datacenter / cloud environments (Render, AWS, DigitalOcean) to prevent bot detection:
- * - Uses android & web player clients
+ * - Uses mweb & web player clients
  * - Evaluates JS challenge tokens using Node.js
  * - Forces IPv4 to bypass broken cloud IPv6 routes to Google Video CDNs
  * - Injects cookies if configured
+ * - Injects PO token if configured
  */
 export function getYtDlpBaseArgs(): string[] {
   const args: string[] = [
@@ -57,6 +79,10 @@ export function getYtDlpBaseArgs(): string[] {
     "--js-runtimes", "node",
     "--extractor-args", "youtube:player_client=mweb,web,android",
   ];
+
+  if (env.YOUTUBE_PO_TOKEN?.trim()) {
+    args.push("--extractor-args", `youtube:po_token=${env.YOUTUBE_PO_TOKEN.trim()}`);
+  }
 
   const cookieFile = getCookiesFilePath();
   if (cookieFile) {
