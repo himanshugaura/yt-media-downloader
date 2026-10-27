@@ -8,28 +8,32 @@ import { logger } from "../core/config/logger.js";
 import { findFirstFile } from "../shared/utils/tempFiles.js";
 
 let cachedCookiePath: string | null = null;
+let lastCookieFingerprint = "";
 
 /**
  * Returns the path to a cookies file if YOUTUBE_COOKIES is configured.
  * If YOUTUBE_COOKIES points to a valid file, that path is returned.
  * If YOUTUBE_COOKIES contains raw cookie text (e.g. pasted into Render env),
  * it writes the content to a temporary file once and reuses it.
+ * Automatically invalidates and updates if the source cookie file/env changes.
  */
 export function getCookiesFilePath(): string | null {
   const rawCookies = (process.env.YOUTUBE_COOKIES || env.YOUTUBE_COOKIES)?.trim();
   if (!rawCookies) return null;
 
-  if (cachedCookiePath && fs.existsSync(cachedCookiePath)) {
-    return cachedCookiePath;
-  }
-
   try {
     let cookieContent = rawCookies;
+    let currentFingerprint = `raw:${rawCookies.length}:${rawCookies.slice(0, 40)}`;
 
     // If pointing to a file on disk (like Render Secret File /etc/secrets/cookies.txt)
-    // ALWAYS read and copy to a writable location (/tmp) because yt-dlp attempts to save cookies on exit!
     if (fs.existsSync(rawCookies)) {
+      const stats = fs.statSync(rawCookies);
+      currentFingerprint = `file:${stats.size}:${stats.mtimeMs}`;
       cookieContent = fs.readFileSync(rawCookies, "utf-8");
+    }
+
+    if (cachedCookiePath && fs.existsSync(cachedCookiePath) && lastCookieFingerprint === currentFingerprint) {
+      return cachedCookiePath;
     }
 
     // Check if base64 encoded (useful for multi-line env var pasting in Render)
@@ -51,10 +55,26 @@ export function getCookiesFilePath(): string | null {
       cookieContent = cookieContent.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
     }
 
+    // Clean up Netscape cookies: strip #HttpOnly_ prefixes so python/yt-dlp loads all auth tokens (LOGIN_INFO, SSID, etc.)
+    cookieContent = cookieContent
+      .split("\n")
+      .map((line) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("#HttpOnly_.")) {
+          return trimmed.slice("#HttpOnly_".length);
+        }
+        if (trimmed.startsWith("#HttpOnly_")) {
+          return trimmed.slice("#HttpOnly_".length);
+        }
+        return line;
+      })
+      .join("\n");
+
     // Write to writable /tmp directory so yt-dlp's save_cookies on exit never encounters Errno 30 Read-only file system
     const tmpCookiePath = path.join(os.tmpdir(), "youtube_cookies.txt");
     fs.writeFileSync(tmpCookiePath, cookieContent, { encoding: "utf-8", mode: 0o600 });
     cachedCookiePath = tmpCookiePath;
+    lastCookieFingerprint = currentFingerprint;
     logger.info("Successfully loaded and prepared writable YouTube cookies", { path: tmpCookiePath });
     return tmpCookiePath;
   } catch (err) {
@@ -87,8 +107,8 @@ export function getYtDlpBaseArgs(): string[] {
 
   if (cookieFile) {
     args.push("--cookies", cookieFile);
-    // When using web session cookies, restrict to web & mweb so yt-dlp never falls back to tv_downgraded or visionos
-    youtubeArgs.push("player_client=web,mweb");
+    // When using web session cookies, restrict to web clients so yt-dlp never falls back to tv_downgraded or visionos
+    youtubeArgs.push("player_client=web,mweb,web_creator");
   } else {
     // Fallback for unauthenticated datacenter IPs
     youtubeArgs.push("player_client=mweb,web,android");
