@@ -167,7 +167,9 @@ export async function streamSingleMp3(options: StreamSingleMp3Options): Promise<
 
         let clientMessage = `YouTube audio extraction failed: ${errorDetail}`;
         if (errorDetail.includes("Sign in to confirm you’re not a bot") || errorDetail.includes("Sign in to confirm you're not a bot")) {
-          clientMessage = "YouTube Bot Detection: Cloud server IP challenged by YouTube. Provide YOUTUBE_COOKIES in Render environment variables to bypass.";
+          clientMessage = "YouTube Bot Detection: Cloud server IP challenged by YouTube. Provide fresh YOUTUBE_COOKIES in Render environment variables to bypass.";
+        } else if (errorDetail.includes("Failed to extract any player response")) {
+          clientMessage = "YouTube Player Error: Unable to extract video stream. Updating yt-dlp or re-authenticating with fresh cookies is recommended.";
         }
         fail(new ApiError(502, clientMessage));
       }

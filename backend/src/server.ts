@@ -1,3 +1,4 @@
+import { exec } from "child_process";
 import app from "./app.js";
 import { env } from "./core/config/env.js";
 import { logger } from "./core/config/logger.js";
@@ -10,6 +11,22 @@ const startServer = async (): Promise<void> => {
     logger.info(`ffmpeg path      : ${env.FFMPEG_PATH}`);
     logger.info(`bulk concurrency : ${env.BULK_CONCURRENCY}`);
     logger.info(`mode             : Direct high-speed processing`);
+
+    // Probe yt-dlp version on startup
+    exec(`${env.YTDLP_PATH} --version`, (err, stdout) => {
+      if (!err && stdout) {
+        logger.info(`yt-dlp version   : ${stdout.trim()}`);
+      }
+    });
+
+    // Run non-blocking auto-updater check to ensure yt-dlp has the latest YouTube patches
+    exec(`${env.YTDLP_PATH} -U`, (err, stdout, stderr) => {
+      if (err) {
+        logger.debug("yt-dlp auto-update notice", { err: err.message, stderr: stderr?.trim() });
+      } else if (stdout) {
+        logger.info(`yt-dlp auto-update: ${stdout.trim()}`);
+      }
+    });
 
     const cookiePath = getCookiesFilePath();
     if (cookiePath) {

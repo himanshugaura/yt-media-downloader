@@ -79,21 +79,27 @@ export function getYtDlpBaseArgs(): string[] {
     "--no-playlist",
     "--no-warnings",
     "--force-ipv4",
+    "--js-runtimes", "node",
+    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
   ];
 
+  const youtubeArgs: string[] = [];
+
   if (cookieFile) {
-    // When authenticated with cookies, use standard direct extraction (~2-3s) without slow mweb JS challenge sleeps
     args.push("--cookies", cookieFile);
+    // When using web session cookies, restrict to web & mweb so yt-dlp never falls back to tv_downgraded or visionos
+    youtubeArgs.push("player_client=web,mweb");
   } else {
     // Fallback for unauthenticated datacenter IPs
-    args.push(
-      "--js-runtimes", "node",
-      "--extractor-args", "youtube:player_client=mweb,web,android",
-    );
+    youtubeArgs.push("player_client=mweb,web,android");
   }
 
   if (env.YOUTUBE_PO_TOKEN?.trim()) {
-    args.push("--extractor-args", `youtube:po_token=${env.YOUTUBE_PO_TOKEN.trim()}`);
+    youtubeArgs.push(`po_token=${env.YOUTUBE_PO_TOKEN.trim()}`);
+  }
+
+  if (youtubeArgs.length > 0) {
+    args.push("--extractor-args", `youtube:${youtubeArgs.join(";")}`);
   }
 
   return args;
