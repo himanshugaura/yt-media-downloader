@@ -83,6 +83,30 @@ export function getCookiesFilePath(): string | null {
   }
 }
 
+let proxyIndex = 0;
+
+/**
+ * Resolves the next proxy from PROXY_URL.
+ * Supports a single proxy or multiple proxies (comma or newline-separated)
+ * with automatic round-robin load balancing across downloads.
+ */
+export function getNextProxy(): string | null {
+  const rawProxy = (process.env.PROXY_URL || env.PROXY_URL || process.env.HTTP_PROXY)?.trim();
+  if (!rawProxy) return null;
+
+  const proxies = rawProxy
+    .split(/[\r\n,]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  if (proxies.length === 0) return null;
+  if (proxies.length === 1) return proxies[0];
+
+  const proxy = proxies[proxyIndex % proxies.length];
+  proxyIndex = (proxyIndex + 1) % proxies.length;
+  return proxy;
+}
+
 /**
  * Common base arguments for yt-dlp across all operations (streaming, downloading, metadata).
  * Optimized for datacenter / cloud environments (Render, AWS, DigitalOcean) to prevent bot detection:
@@ -91,6 +115,7 @@ export function getCookiesFilePath(): string | null {
  * - Forces IPv4 to bypass broken cloud IPv6 routes to Google Video CDNs
  * - Injects cookies if configured
  * - Injects PO token if configured
+ * - Injects proxy if configured
  */
 export function getYtDlpBaseArgs(): string[] {
   const cookieFile = getCookiesFilePath();
@@ -103,7 +128,7 @@ export function getYtDlpBaseArgs(): string[] {
     "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
   ];
 
-  const proxy = (process.env.PROXY_URL || env.PROXY_URL || process.env.HTTP_PROXY)?.trim();
+  const proxy = getNextProxy();
   if (proxy) {
     args.push("--proxy", proxy);
   }

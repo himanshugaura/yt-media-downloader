@@ -35,10 +35,10 @@ const startServer = async (): Promise<void> => {
       logger.warn(`cookies          : None configured (anonymous requests)`);
     }
 
-    const proxy = (process.env.PROXY_URL || env.PROXY_URL || process.env.HTTP_PROXY)?.trim();
-    if (proxy) {
-      const maskedProxy = proxy.replace(/:[^:@]+@/, ":****@");
-      logger.info(`proxy            : Enabled (${maskedProxy})`);
+    const rawProxy = (process.env.PROXY_URL || env.PROXY_URL || process.env.HTTP_PROXY)?.trim();
+    if (rawProxy) {
+      const count = rawProxy.split(/[\r\n,]+/).map((p) => p.trim()).filter(Boolean).length;
+      logger.info(`proxy            : Enabled (${count} proxy endpoint${count > 1 ? "s with round-robin" : ""})`);
     } else {
       logger.info(`proxy            : None configured (direct connection)`);
     }
