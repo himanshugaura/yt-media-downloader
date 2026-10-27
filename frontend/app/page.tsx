@@ -135,7 +135,9 @@ export default function Home() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 1000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to download audio.";
       setSingleError(message);
@@ -192,14 +194,24 @@ export default function Home() {
 
           if (update.status === "COMPLETED") {
             sse.close();
-            // Automatically trigger ZIP download
+            // Automatically trigger ZIP download via blob to route directly to download manager
             const directZipUrl = `${API_BASE_URL}/download/bulk/${batchId}/file`;
-            const a = document.createElement("a");
-            a.href = directZipUrl;
-            a.download = "youtube-audio-bundle.zip";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            fetch(directZipUrl)
+              .then((r) => r.blob())
+              .then((blob) => {
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.style.display = "none";
+                a.href = blobUrl;
+                a.download = "youtube-audio-bundle.zip";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+              })
+              .catch((err) => {
+                console.error("Failed to download bulk ZIP", err);
+              });
           } else if (update.status === "FAILED" || update.status === "ABORTED") {
             sse.close();
           }
