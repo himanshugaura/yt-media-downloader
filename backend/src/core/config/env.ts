@@ -26,6 +26,9 @@ const envSchema = z.object({
 
   // Optional YouTube PO token for cloud/Render bypass
   YOUTUBE_PO_TOKEN: z.string().optional(),
+
+  // Optional proxy URL (e.g. Webshare http://user:pass@p.webshare.io:80) to bypass cloud datacenter IP blocks
+  PROXY_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

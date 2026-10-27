@@ -34,6 +34,14 @@ const startServer = async (): Promise<void> => {
     } else {
       logger.warn(`cookies          : None configured (anonymous requests)`);
     }
+
+    const proxy = (process.env.PROXY_URL || env.PROXY_URL || process.env.HTTP_PROXY)?.trim();
+    if (proxy) {
+      const maskedProxy = proxy.replace(/:[^:@]+@/, ":****@");
+      logger.info(`proxy            : Enabled (${maskedProxy})`);
+    } else {
+      logger.info(`proxy            : None configured (direct connection)`);
+    }
   });
 
   const shutdown = (signal: string) => {

@@ -103,6 +103,11 @@ export function getYtDlpBaseArgs(): string[] {
     "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
   ];
 
+  const proxy = (process.env.PROXY_URL || env.PROXY_URL || process.env.HTTP_PROXY)?.trim();
+  if (proxy) {
+    args.push("--proxy", proxy);
+  }
+
   const youtubeArgs: string[] = [];
 
   if (cookieFile) {
