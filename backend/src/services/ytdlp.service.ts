@@ -135,13 +135,12 @@ export function getYtDlpBaseArgs(): string[] {
 
   const youtubeArgs: string[] = [];
 
-  if (cookieFile) {
+  // When a proxy is configured, use clean unauthenticated requests to prevent expired cookies from triggering bot checks.
+  // If no proxy is present, use cookies if provided.
+  if (cookieFile && !proxy) {
     args.push("--cookies", cookieFile);
     // When using web session cookies, restrict to web clients so yt-dlp never falls back to tv_downgraded or visionos
     youtubeArgs.push("player_client=web,mweb,web_creator");
-  } else {
-    // Fallback for unauthenticated datacenter IPs
-    youtubeArgs.push("player_client=mweb,web,android");
   }
 
   if (env.YOUTUBE_PO_TOKEN?.trim()) {
